@@ -1,7 +1,7 @@
 # =============================================================================
 package Color::Model::RGB;
 # -----------------------------------------------------------------------------
-$Color::Model::RGB::VERSION = '1.0';
+$Color::Model::RGB::VERSION = '1.01';
 # -----------------------------------------------------------------------------
 use warnings;
 use strict;
@@ -22,7 +22,12 @@ Color::Model::RGB - Color model of RGB
     $hilight = $midgray * 1.5;  # multiply
     print qq(<span color="#$hilight">see<span>);    # stringify
 
+    @rgbval = $color->array();
+    @rgb256 = $color->array256();
+
+    # applying ...
     @gradation = map { rgb('#010101') << $_ } (0..7);
+    @tricolor  = ( $c, rgb(($c->array)[1,2,0]), rgb(($c->array)[2,0,1]) );
 
     # use Color::Model::RGB qw(:blender);
     $violet = blend_half(R, B);
@@ -30,21 +35,17 @@ Color::Model::RGB - Color model of RGB
 
 =head1 DESCRIPTION
 
-Color::Model::RGB is a color model that represented by 3D mathematical vector.
-This class provides a color vector and fomulae to calcucate and treat color
-values simply.
-
-Color::Model::RGB uses Math::VectorReal as base. So any methods and functions
-of Math::VectorReal are inherited.
-
-When some stringifying methods represents values lesser than 0 to be 0.
+Color::Model::RGB is a color model of RGB implemented by 3D mathematical
+vector.
+This provides abstruct calculation for colors with overloding and methods
+to convert to hexadecimal strings designed for HTML, CSS and etc simply.
 
 =cut
 
 # =============================================================================
 use Carp;
 use POSIX qw(ceil);
-use Scalar::Util qw(blessed);
+use Scalar::Util ();
 
 use base qw(Math::VectorReal Exporter);
 our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
@@ -69,8 +70,8 @@ our $FORMAT_HEXED = 1;      # flag of magic to represent hexadecimal numbers.
 
 =head1 CONSTANTS
 
-Some primary colors below are defined as constant. To use these, Export with tag
-':primary' or ':RGB' 
+Some primary colors below are defined as constant. To use these, import them
+with tag ':primary' or ':RGB' 
 
     #     R G B
     O = [ 0 0 0 ]
@@ -107,11 +108,14 @@ There are functions to make an object.
 Method I<rgb()>, I<rgb256()> and I<rgbhex()> are defalut exported functions
 returns new Color::Model::RGB object as I<new()>.
 
-Method I<new()> and I<rgb()> require three decimal argument. Values out of range
-will be set -1.0 or 1.0. If one value is given to I<rgb()>, rgb() treat it as
-a hexadecimal string and call I<reghex()>.
+Method I<new()> and I<rgb()> require three decimal values as arguments. Values
+out of a range, from -1.0 to 1.0, will be set -1.0 or 1.0.
+If one argument is given to I<rgb()>, it will be treated as a hexadecimal
+string and call I<reghex()> internaly.
+
 Method I<rgb256()> requires three integer values from -255 to 255. Out of range
 value will be set -255 or 255.
+
 Method I<rgbhex()> requires a hexadecimal string like HTML format. An argument
 starts with '#' is also allowed.
 
@@ -177,11 +181,18 @@ sub rgbhex
 
 =item r(), g(), b()
 
-Returns decimal value of elements.
+Returns decimal value of an element.
 
 =item r256(), g256(), b256()
 
-Returns integer value of elements, which was multiplyed by 255.
+Returns integer value of an element, which is multiplyed by 255 and rounded by
+I<POSIX::ceil()>.
+
+=item array()
+=item array256()
+
+These methods return an array contains values of elements. I<array256()>
+returns values multiplyed by 255 and rounded by I<POSIX::ceil()>.
 
 =item hexstr([ $head_letter ])
 
@@ -190,17 +201,16 @@ value starting with it returns.
 
 =item truncate(), limit()
 
-These methods return new clone object, values of which set in regulated range.
-Method I<truncate()> make values lesser than 0 set to 0, and grater than
-1 set to 1. And I<limit()> set values from -1 to 1 similarly. 
+These methods return new clone object, values of elements of which are set in
+regulated range. I<truncate()> makes a values lesser than 0 set to 0, and
+grater than 1 set to 1. And I<limit()> set values from -1 to 1 similarly. 
 
 =item stringify( [ $format [, $flag2hex] ] )
 
-This method can takes 2 arguments. First is format string for I<sprintf()>.
-Second is a boolean flag to convert to hexadecimal or not. If this flag is
-true, each values will be multiplyed by 255 at outputing.
-Default value of the format and the flag are keeped by package parameter and
-these are;
+This method can take 2 arguments. The first is format string for I<sprintf()>,
+and the second is a boolean flag to convert to hexadecimal or not. If this
+flag is true, values multiplyed by 255 will be used at outputing.
+Default values of the format and the flag are keeped by package variable;
 
     $Color::Model::RGB::FORMAT       = "%02x%02x%02x";
     $Color::Model::RGB::FORMAT_HEXED = 1;
@@ -328,18 +338,50 @@ calculation. When stringifying such object, minus value will be represented as
 
 =item Object scalar multiplication (*)
 
-    $c = W * 0.5    # object  * scalar  -> rgb(r1*x,  g1*x,  b1*x)
-    # object1 * object2 is not allowed (croaking)
+    $c = W * 0.5    # object * scalar  -> rgb(r1*x,  g1*x,  b1*x)
+    # use Math::MatrixReal
+    $c = $col * $m  # Color::Model::RGB * Math::MatrixReal
+
+Color::Model::RGB multiplication by a object is allowed by 
+B<Math::MatrixReal> instance. This function may be good to calculate hue
+rotation of a color.
+
+    # hue rotation sample
+    $r = 2 * (atan2(1,1)*4) / 10; # for 2pi/10 radian
+    ($sin,$cos) = (sin($r), cos($r));
+    $p  = (1/3) * (1-$cos);
+    $q  = sqrt(1/3) * $sin; # (1/3,1/3,1/3) is norm of W
+
+    $matrix = Math::MatrixReal->new_from_rows([
+        [ $p+$cos, $p-$q,   $p+$q,  ],
+        [ $p+$q,   $p+$cos, $p-$q,  ],
+        [ $p-$q,   $p+$q,   $p+$cos,],
+    ]);
+
+    $rgb = R;
+    foreach ( 1..10 ){
+        print qq(<span style="color:#$rgb">#$rgb</span><br>\n);
+        $rgb *= $matrix;
+    }
 
 =item Object scalar division (/)
 
     $c = W / 3      # object  / scalar  -> rgb(r1/x,  g1/x,  b1/x)
     # object1 / object2 is not allowed (croaking)
 
-=item Outer and dot products
+=item Cross and dot products (x and .)
 
-Calculation a product is seldom used for color manipulation I guess. So I
-omit explanation of these.
+Calculation corss or dot product is seldom used at color manipulation.
+These may be used for hue rotation, too.
+
+    $r = 2 * (atan2(1,1)*4) / 10; # for 2pi/10 radian
+    $n = W->norm;
+    $rgb = R;
+    foreach ( 1..10 ){
+        print qq(<span style="color:#$rgb">#$rgb</span><br>\n);
+        $p = $n * ($n . $rgb);
+        $rgb = $p + ($rgb - $p)*cos($r) - ($rgb x $n)*sin($r);
+    }
 
 =item Bitwise operations 
 
@@ -399,17 +441,35 @@ sub _trace
 }
 
 sub _multiply {
-    my($object,$argument,$flip) = @_;
-    _trace("'*'",$object,$argument,$flip);
-    # Multiplying by an object is not allowed in Color::Model::RGB
-    if ( (defined $argument) && !ref($argument) ){
-        # same code as Math::VectorReal below
-        my $v = $object->clone;
-        for ( 0 .. 2 ) { $v->[0][0][$_] *= $argument; }
-        $v->[6] *= abs($argument) if defined $v->[6]; # multiply vector length
-        return $v;
+  # copied and improved from Math::VectorReal
+  my($object,$argument,$flip) = @_;
+  _trace("'*'",$object,$argument,$flip);
+  if ( ref($argument) ){
+    if ( $argument->isa('Math::MatrixReal') ) {
+        # Assume multiply by  Math::MatrixReal object  EG:  $v * $M --> $new_v
+        # Order is communicative, but $flip should NOT be true
+        if ( ! $flip ) {
+            my $v = ( $object->vector2matrix_row($argument)
+                            * $argument )->matrix_row2vector;
+            return bless $v, __PACKAGE__;
+        } else { # just in case flip is true..
+            my $v = ( $argument *
+                    $object->vector2matrix_row($argument) )->matrix_row2vector;
+            return bless $v, __PACKAGE__;
+        }
+    } else {
+        Carp::croak("multiplication(*) is allowed by Math::MatrixReal object or scalar");
     }
-    Carp::croak("non-scalar given for vector scalar multiplication");
+  }
+  elsif ( defined $argument ) {
+    # defined $argument must be a scalar, so Scalar Multiply
+    # Communitive - order does not matter, $flip can be ignored
+    my $v = $object->clone;
+    for ( 0 .. 2 ) { $v->[0][0][$_] *= $argument; }
+    $v->[6] *= abs($argument) if defined $v->[6]; # multiply vector length
+    return $v;
+  }
+  Carp::croak("undefined argument given for vector multiply");
 }
 
 sub _bit_shiftl
@@ -624,14 +684,14 @@ two objects.
 sub blend_alpha
 {
     my ($src,$src_rate, $dist,$dist_rate) = @_;
-    unless ( blessed($src) && $src->isa(__PACKAGE__) ){
+    unless ( Scalar::Util::blessed($src) && $src->isa(__PACKAGE__) ){
         Carp::croak("First argumenst must be object of ".__PACKAGE__);
     }
     unless ( !ref($src_rate) && $src_rate =~ /^[0-9\.\-]+$/ &&
         $src_rate >=-1 && $src_rate <= 1 ){
         Carp::croak("Second argumenst must be a number between -1.0 to 1.0");
     }
-    unless ( blessed($dist) && $dist->isa(__PACKAGE__) ){
+    unless ( Scalar::Util::blessed($dist) && $dist->isa(__PACKAGE__) ){
         Carp::croak("Third argumenst must be object of ".__PACKAGE__);
     }
     unless ( !ref($dist_rate) && $dist_rate =~ /^[0-9\.\-]+$/ &&

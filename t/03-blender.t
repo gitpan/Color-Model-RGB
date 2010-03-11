@@ -1,7 +1,6 @@
 #!perl -T
 use strict;
 use warnings;
-use Data::Dumper;
 use Test::More 'no_plan';
 
 use Color::Model::RGB qw(:all);
