@@ -1,7 +1,7 @@
 # =============================================================================
 package Color::Model::RGB;
 # -----------------------------------------------------------------------------
-$Color::Model::RGB::VERSION = '1.01';
+$Color::Model::RGB::VERSION = '1.02';
 # -----------------------------------------------------------------------------
 use warnings;
 use strict;
@@ -16,14 +16,14 @@ Color::Model::RGB - Color model of RGB
     $limegreen = rgb('#32CD32');
 
     # use Color::Model::RGB qw(:primary);
-    $white   = R + G + B;       # addition (constant O and W is also prepared)
+    $white   = R + G + B;       # addition (Constant O and W are also prepared)
     $yellow  = $white - $b;     # subtraction
     $midgray = $while / 2;      # divide
     $hilight = $midgray * 1.5;  # multiply
     print qq(<span color="#$hilight">see<span>);    # stringify
 
-    @rgbval = $color->array();
-    @rgb256 = $color->array256();
+    @rgbval = $color->array();      # decimal
+    @rgb256 = $color->array256();   # integers
 
     # applying ...
     @gradation = map { rgb('#010101') << $_ } (0..7);
@@ -38,7 +38,9 @@ Color::Model::RGB - Color model of RGB
 Color::Model::RGB is a color model of RGB implemented by 3D mathematical
 vector.
 This provides abstruct calculation for colors with overloding and methods
-to convert to hexadecimal strings designed for HTML, CSS and etc simply.
+to convert values to simply hexadecimal string designed for HTML, CSS and etc.
+
+Color::Model::RGB is based on B<Math::VectorReal>.
 
 =cut
 
@@ -64,6 +66,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
 our $FORMAT = '%02x%02x%02x';
 our $FORMAT_HEXED = 1;      # flag of magic to represent hexadecimal numbers.
+
 
 
 # =============================================================================
@@ -371,9 +374,10 @@ rotation of a color.
 
 =item Cross and dot products (x and .)
 
-Calculation corss or dot product is seldom used at color manipulation.
+Calculation corss and dot product are seldom used at color manipulation.
 These may be used for hue rotation, too.
 
+    # hue rotation sample 2
     $r = 2 * (atan2(1,1)*4) / 10; # for 2pi/10 radian
     $n = W->norm;
     $rgb = R;
@@ -403,14 +407,14 @@ There are bitwise operations in Color::Model::RGB such as '<<', '>>','&',
 
     $col10 = ~$col8;        # Bit Negate, becomes bfbfbf
 
-In bit operation, each values of Color::Model::RGB are conveted to integers
-from 0 to 255 and than caluculated individually, and converted to decimal
-again.
+In bitwise operation, each element values of Color::Model::RGB are internaly
+conveted to integers from 0 to 255 and than caluculated individually, and
+converted to decimal again.
 
 Package parameter, $Color::Model::RGB::BIT_SHIFT_RIGID, changes bit shift
 operation's result. If this is true value, caluculated value will be ANDed
-with 0xff. If not, valuse over 0xff will be set to 0xff(255). Default is
-false(0).
+with 0xff. If it is false, valuse over 0xff will be set to 0xff(255). Default
+is false(0).
 
     $Color::Model::RGB::BIT_SHIFT_RIGID = 1;
     $col = rgbhex('010101')<<8;     # becomes 000000
@@ -673,10 +677,10 @@ sub get_format
 Color::Model::RGB has several blending functions which make a new object from
 two objects.
 
-    $blend_alpha = blend_alpha($src,0.3,$dist,0.7); # any transparency rate
-    $blend_half  = blend_half($src,$dist);          # 50%:50%
-    $blend_plus  = blend_plus($src,$dist);          # $src + $dist
-    $blend_minus = blend_plus($src,$dist);          # $src - $dist
+    $blend_alpha = blend_alpha($col1,0.3,$col2,0.7); # any transparency rate
+    $blend_half  = blend_half($col1,$col2);          # 50%:50%
+    $blend_plus  = blend_plus($col1,$col2);          # $col1 + $col2
+    $blend_minus = blend_plus($col1,$col2);          # $col1 - $col2
 
 =cut
 
